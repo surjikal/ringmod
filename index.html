@@ -317,7 +317,6 @@
       }});
 
       let gui = new dat.GUI();
-      gui.close();
       gui.add(config,  'animate').name("Animate");
       gui.add(config,  'speed', 0.0, 10.0).step(0.01).name("Speed");
       gui.add(config,  'count', 2, 1000).step(1).name("Line Count");
