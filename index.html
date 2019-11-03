@@ -332,7 +332,7 @@
       gui.add(config,  'circle').name('Circle Outline');
       gui.add(actions, 'clear').name("Clear Fade");
       gui.add(actions, 'reset').name("Reset to Default");
-      let hotkeyToggle = gui.add(panels,  'hotkeys').name("Show Hotkeys");
+      let hotkeyToggle = gui.add(panels, 'hotkeys').name("Show Hotkeys");
       hotkeyToggle.onChange(x => !x && actions.clear());
       const updateGuiState = () => {
         for (var i in gui.__controllers) {
@@ -353,7 +353,7 @@
         } catch (error) {
           console.error(error);
         }
-      }, 100);
+      }, 1000);
 
     })();
     </script>
