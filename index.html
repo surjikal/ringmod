@@ -1,0 +1,361 @@
+﻿<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pts/0.8.8/pts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/history/4.10.1/history.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/URI.js/1.8.3/URI.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.6/dat.gui.min.js"></script>
+    <style>
+      *:not(input), *:not(slider), *:not(select) {
+        user-select: none;
+      }
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        box-sizing: border-box;
+        border: 0px solid black;
+        background: black;
+      }
+      #container {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="container"></div>
+    <script>
+    (function() {
+
+      function parseBool(x) {
+        if (x === "false") return false;
+        if (x === "true") return true;
+        return null;
+      }
+
+      function isInt(x) {
+        return x % 1 === 0;
+      }
+
+      function copy(a) {
+        return JSON.parse(JSON.stringify(a));
+      }
+
+      function extend(a, b) {
+        a = copy(a);
+        b = copy(b);
+        for (let k in a) {
+          if (b[k] === undefined) continue;
+          if (typeof(a[k]) == "number") {
+            value = isInt(a[k]) ? parseInt(b[k]) : parseFloat(b[k]);
+            value = Number.isNaN(value) ? null : value;
+          } else if (typeof(a[k]) == "boolean") {
+            let parsed = parseBool(b[k]);
+            value = parsed === null ? a[k] : parsed;
+          }
+          if (Number.isNaN(value) || value === null || value === undefined) continue;
+          a[k] = value;
+        }
+        return a;
+      }
+
+      let defaultConfig = {
+        speed: 0.5
+      , animate: false
+      , fade: true
+      , index: 1
+      , count: 200
+      , continuous: true
+      , size: 0.5
+      , renderer: 4
+      , lineThicc: 1
+      , circle: true
+      , circleThicc: 1
+      };
+
+      let history = History.createBrowserHistory();
+      let url = URI(window.location.href);
+      var config = extend(defaultConfig, url.search(true));
+
+      const updateUrlState = (config) => {
+        url.search(config);
+        history.replace(url.path() + url.search(), {});
+      }
+
+      let panels = {
+        hotkeys: true
+      };
+
+      let actions = {
+        reset:() => {
+          space.clear("black");
+          config = copy(defaultConfig);
+        },
+        clear:() => {
+          space.clear("black");
+          render();
+        }
+      };
+
+      document.addEventListener('keydown', (event) => {
+        const keyName = event.key;
+        const multiplier = event.shiftKey ? 10 : 1;
+
+        switch (keyName) {
+          case "ArrowLeft":
+            config.index = (Math.floor(config.index) - multiplier);
+            if (config.index === 0) config.index = (config.count-1);
+            break;
+          case "ArrowRight":
+            config.index = (Math.ceil(config.index) + multiplier);
+            if (config.index === 0) config.index = 1;
+            if (config.index === config.count) config.index = 1;
+            break;
+          case "ArrowUp":
+            config.count += multiplier;
+            if (config.index === 0) config.index = config.count-1;
+            break;
+          case "ArrowDown":
+            config.count = Math.max(2, config.count - multiplier);
+            if (config.index === 0) config.index = 1;
+            if (config.index === config.count) config.index = 1;
+            break;
+          case "o":
+          case "O":
+            config.speed = Math.max(-10, config.speed - (multiplier * 0.005));
+            break;
+          case "p":
+          case "P":
+            config.speed = Math.min(10, config.speed + (multiplier * 0.005));
+            break;
+          case "f":
+            config.fade = !config.fade;
+            break;
+          case "c":
+            config.continuous = !config.continuous;
+            if (config.continuous) config.index = Math.floor(config.index);
+            break;
+          case "1":
+          case "2":
+          case "3":
+          case "4":
+          case "5":
+            if (document.activeElement.tagName === "INPUT") break;
+            config.index = parseInt(keyName);
+            break;
+          case "0":
+          case "9":
+          case "8":
+          case "7":
+          case "6":
+            if (document.activeElement.tagName === "INPUT") break;
+            config.index = config.count-(10-parseInt(keyName));
+            break;
+          case "=":
+          case "+":
+            config.size = Math.min(1, config.size + (value * 0.001));
+            break;
+          case "-":
+          case "_":
+            config.size = Math.max(0.0, config.size - (value * 0.001));
+            break;
+          case "`":
+          case "~":
+          case "?":
+          case "/":
+            panels.hotkeys = !panels.hotkeys;
+            if (!panels.hotkeys) actions.clear();
+            break;
+          case " ":
+            config.animate = !config.animate;
+            break;
+        }
+        return false;
+      }, false);
+
+
+      const renderHotkeyDisplay = () => {
+        let font = new Font(10, "Monaco, monospace");
+        const hotkeys = [
+          ['?, ~',         'Toggle this panel']
+        , ['Left, Right',  'Change the index by 1 (faster w/ shift key)']
+        , ['Up, Down',     'Change the line count by 1 (faster w/ shift key)']
+        , ['O, P',         'Change the speed (faster w/ shift key)']
+        , ['-, +',         'Change the size of the circle']
+        , ['Click',        'Change the visualization style']
+        , ['Space Bar',    'Toggle the animation']
+        , ['F',            'Toggle Fade']
+        , ['1,2,3,4,5',    'Sets the index to N']
+        , ['0,9,8,7,6',    'Sets the index to Line Count - N']
+        ]
+        const keys = hotkeys.map((x) => x[0]).join('\n');
+        const desc = hotkeys.map((x) => x[1]).join('\n');
+        const padding = 30;
+        const height = 180;
+        const keysRect = Rectangle.from([padding, padding], [90, height]);
+        const descRect = Rectangle.from([padding + Rectangle.size(keysRect).x, padding], [325, Rectangle.size(keysRect).y]);
+        const rect = Rectangle.from([padding/2, padding/2], [Rectangle.size(keysRect).x + Rectangle.size(descRect).x + padding/2, height + padding/2]);
+        form.fill("#0005").stroke("#FFF0", 5).rect(rect);
+        form.font(font).fill("#FFFF").paragraphBox(keysRect, keys, 1.5, "top" );
+        form.font(font).fill("#FFFB").paragraphBox(descRect, desc, 1.5, "top" );
+      }
+
+      const generate = (count, multiplier) => {
+        count = Math.max(1, count);
+        let result = new Group();
+        let angle = 360 / count;
+        for (let i=0; i<=count; i++) {
+          let start = new Pt([1, 0]);
+          let end = start.clone();
+          let shift = i * multiplier;
+          start.toAngle(Geom.toRadian((i * angle)));
+          end.toAngle(Geom.toRadian(((i + shift) * angle)));
+          result.push(start);
+          result.push(end);
+        }
+        result.rotate2D(Geom.toRadian(-90), [0,0]);
+        return result;
+      }
+
+      let renderers = [
+        ['Magenta', (lines, circle) => {
+          form.strokeOnly("#F000F0F0", config.lineThicc).lines(lines);
+          if (circle) form.strokeOnly("#F000F0FF", config.circleThicc).circle(circle);
+        }],
+        ['HSL_Lines', (lines, circle) => {
+          lines.forEach((line, i) => {
+            let color = Color.HSLtoRGB(Color.hsl(200 + (i / lines.length) * 100, 0.8, 0.6));
+            form.strokeOnly(color.toString(), config.lineThicc).line(line);
+          });
+        }],
+        ['Magenta_Background', (lines, circle) => {
+          space.clear("#F012BE");
+          form.strokeOnly("black", config.lineThicc).lines(lines);
+          if (circle) form.strokeOnly("black", config.circleThicc).circle(circle);
+        }],
+        ['HSL_Uniform', (lines, circle) => {
+          let color = Color.HSLtoRGB(Color.hsl((config.index*200)%360, 0.7, 0.7));
+          form.strokeOnly(color.toString(), config.lineThicc).lines(lines);
+          if (circle) form.strokeOnly(color, config.circleThicc).circle(circle);
+        }],
+        ['HSL_Lines_Alt', (lines, circle) => {
+          lines.forEach((line, i) => {
+            let color = Color.HSLtoRGB(Color.hsl(((config.index*100) + 200 + (i / lines.length) * 100)%360, 0.8, 0.7));
+            color = color.toString().replace(')', '0.1)').replace('rgb', 'rgba')
+            form.strokeOnly(color, config.lineThicc).line(line);
+          });
+        }],
+        ['Red_Background', (lines, circle) => {
+          space.clear("#FF4136");
+          form.strokeOnly("black", config.lineThicc).lines(lines);
+          if (circle) form.strokeOnly("black", config.circleThicc).circle(circle);
+        }],
+        ['Black_Background', (lines, circle) => {
+          form.strokeOnly("white", config.lineThicc).lines(lines);
+          if (circle) form.strokeOnly("white", config.circleThicc).circle(circle);
+        }]
+      ];
+      config.renderer = Math.max(0, config.renderer) % renderers.length;
+
+      const render = () => {
+        let size = Math.min(space.size.x, space.size.y) * config.size * 0.9;
+        let width = Math.min(space.size.x, space.size.y);
+        let points = generate(config.count, config.index);
+        lines = points.multiply(size).add(space.center).segments(2,2);
+        let circle = config.circle? Circle.fromCenter(space.center, size) : null;
+        renderers[config.renderer][1](lines, circle);
+      }
+
+      let timers = {nonContinuous: 0};
+      let started = false;
+      let run = Pts.quickStart("#container", "hsla(10, 40%, 4%, 0.01)");
+      run((time, ftime)  => {
+        let increment = (ftime * 0.001);
+        config.count = Math.round(config.count)
+        if (config.index > config.count) config.index = config.index % config.count;
+        if (config.index < 0) config.index = config.count + config.index;
+        if (config.index == 0) config.index = 1;
+
+        started = true;
+
+        if (config.fade) {
+          space.clear("hsla(10, 40%, 4%, 0.01)");
+        } else {
+          space.clear("black");
+        }
+
+        render();
+
+        if (panels.hotkeys) {
+          renderHotkeyDisplay();
+        }
+
+        let shouldUpdateNonContinuous = timers.nonContinuous > (1000 * (1-config.speed));
+
+        if (config.animate) {
+          if (config.continuous) {
+            config.index = config.index + (config.speed * increment);
+          } else {
+            let multiplier = shouldUpdateNonContinuous ? 10 : 0;
+            config.index = Math.floor(config.index + increment * multiplier);
+          }
+        }
+        timers.nonContinuous = shouldUpdateNonContinuous ? 0 : timers.nonContinuous;
+        timers.nonContinuous += ftime;
+      });
+
+      space.add({action:(type, x, y) => {
+        if (type == "up") {
+          config.renderer = (config.renderer+1) % renderers.length;
+        }
+      }});
+
+      space.add({resize:(type, x, y) => {
+        console.log('resize');
+        if (!started) return;
+        actions.clear();
+        render();
+      }});
+
+      let gui = new dat.GUI();
+      gui.close();
+      gui.add(config,  'animate').name("Animate");
+      gui.add(config,  'speed', 0.0, 10.0).step(0.01).name("Speed");
+      gui.add(config,  'count', 2, 1000).step(1).name("Line Count");
+      gui.add(config,  'index').step(0.00001).name("Multiplier");
+      gui.add(config,  'continuous').name("Clamp Muliplier");
+      gui.add(config,  'renderer', renderers.map((x, i) => i)).name('Visualization');
+      gui.add(config,  'size', 0.0, 1.0).step(0.01).name("Circle Size");
+      gui.add(config,  'fade').name("Fade");
+      gui.add(config,  'lineThicc', 0.1, 10.0).step(0.1).name('Line Thiccness');
+      gui.add(config,  'circleThicc', 0.1, 50.0).step(0.1).name('Circle Thiccness');
+      gui.add(config,  'circle').name('Circle Outline');
+      gui.add(actions, 'clear').name("Clear Fade");
+      gui.add(actions, 'reset').name("Reset to Default");
+      let hotkeyToggle = gui.add(panels,  'hotkeys').name("Show Hotkeys");
+      hotkeyToggle.onChange(x => !x && actions.clear());
+      const updateGuiState = () => {
+        for (var i in gui.__controllers) {
+          let controller = gui.__controllers[i];
+          if (document.activeElement !== controller.domElement.getElementsByTagName('input')[0]) {
+            controller.updateDisplay();
+          }
+        }
+      }
+      updateUrlState(config);
+
+      // Separating this from the render loop for performance reasons
+      setInterval(() => {
+        try {
+          console.log('updating')
+          updateUrlState(config);
+          updateGuiState();
+        } catch (error) {
+          console.error(error);
+        }
+      }, 100);
+
+    })();
+    </script>
+  </body>
+</html>
