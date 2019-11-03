@@ -311,7 +311,6 @@
       }});
 
       space.add({resize:(type, x, y) => {
-        console.log('resize');
         if (!started) return;
         actions.clear();
         render();
@@ -347,7 +346,6 @@
       // Separating this from the render loop for performance reasons
       setInterval(() => {
         try {
-          console.log('updating')
           updateUrlState(config);
           updateGuiState();
         } catch (error) {
