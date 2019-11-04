@@ -46,7 +46,9 @@
         b = copy(b);
         for (let k in a) {
           if (b[k] === undefined) continue;
-          if (typeof(a[k]) == "number") {
+          if (k === "index") {
+            value = parseFloat(b.index);
+          } else if (typeof(a[k]) == "number") {
             value = isInt(a[k]) ? parseInt(b[k]) : parseFloat(b[k]);
             value = Number.isNaN(value) ? null : value;
           } else if (typeof(a[k]) == "boolean") {
@@ -65,7 +67,7 @@
       , fade: true
       , index: 1
       , count: 200
-      , continuous: true
+      // , continuous: true
       , size: 0.5
       , renderer: 4
       , lineThicc: 1
@@ -219,8 +221,8 @@
 
       let renderers = [
         ['Magenta', (lines, circle) => {
-          form.strokeOnly("#F000F0F0", config.lineThicc).lines(lines);
-          if (circle) form.strokeOnly("#F000F0FF", config.circleThicc).circle(circle);
+          form.strokeOnly("#F000F0", config.lineThicc).lines(lines);
+          if (circle) form.strokeOnly("#F000F0", config.circleThicc).circle(circle);
         }],
         ['HSL_Lines', (lines, circle) => {
           lines.forEach((line, i) => {
@@ -241,8 +243,7 @@
         ['HSL_Lines_Alt', (lines, circle) => {
           lines.forEach((line, i) => {
             let color = Color.HSLtoRGB(Color.hsl(((config.index*100) + 200 + (i / lines.length) * 100)%360, 0.8, 0.7));
-            color = color.toString().replace(')', '0.1)').replace('rgb', 'rgba')
-            form.strokeOnly(color, config.lineThicc).line(line);
+            form.strokeOnly(color.toString(), config.lineThicc).line(line);
           });
         }],
         ['Red_Background', (lines, circle) => {
@@ -293,8 +294,8 @@
         let shouldUpdateNonContinuous = timers.nonContinuous > (1000 * (1-config.speed));
 
         if (config.animate) {
-          if (config.continuous) {
-            config.index = config.index + (config.speed * increment);
+          if (config.continuous || true) {
+            config.index = config.index + (Math.log1p(config.speed) * increment);
           } else {
             let multiplier = shouldUpdateNonContinuous ? 10 : 0;
             config.index = Math.floor(config.index + increment * multiplier);
@@ -311,9 +312,13 @@
       }});
 
       space.add({resize:(type, x, y) => {
-        if (!started) return;
-        actions.clear();
-        render();
+        if (!started) {
+          space.clear("black");
+          return;
+        } else {
+          actions.clear();
+          render();
+        }
       }});
 
       let gui = new dat.GUI();
@@ -321,7 +326,7 @@
       gui.add(config,  'speed', 0.0, 10.0).step(0.01).name("Speed");
       gui.add(config,  'count', 2, 1000).step(1).name("Line Count");
       gui.add(config,  'index').step(0.00001).name("Multiplier");
-      gui.add(config,  'continuous').name("Clamp Muliplier");
+      // gui.add(config,  'continuous').name("Clamp Muliplier");
       gui.add(config,  'renderer', renderers.map((x, i) => i)).name('Visualization');
       gui.add(config,  'size', 0.0, 1.0).step(0.01).name("Circle Size");
       gui.add(config,  'fade').name("Fade");
