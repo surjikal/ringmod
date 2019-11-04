@@ -1,7 +1,7 @@
 
 # ringmod
 
-![screenshot](/screenshots/main.png)
+[![screenshot](/screenshots/main.png)](https://surjikal.github.io/ringmod)
 
 ## Hotkeys
 
